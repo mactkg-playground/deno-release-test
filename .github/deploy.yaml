@@ -1,0 +1,47 @@
+name: Build and Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Deno
+        uses: denolib/setup-deno@v2
+
+      - name: Check out repository
+        uses: actions/checkout@v2
+        with:
+          repository: mactkg-playground/deno-release-test
+
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::$(git rev-parse --short HEAD)
+
+      - name: Build binaries
+        run: |
+          deno compile --unstable --target=x86_64-unknown-linux-gnu --output=bin/hello-world-${{ steps.get_version.outputs.VERSION }}-linux
+          deno compile --unstable --target=x86_64-pc-windows-msvc --output=bin/hello-world-${{ steps.get_version.outputs.VERSION }}-windows.exe
+          deno compile --unstable --target=x86_64-apple-darwin --output=bin/hello-world-${{ steps.get_version.outputs.VERSION }}-macos
+          deno compile --unstable --target=aarch64-apple-darwin --output=bin/hello-world-${{ steps.get_version.outputs.VERSION }}-arm64
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: false
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: binaries
+          path: bin
