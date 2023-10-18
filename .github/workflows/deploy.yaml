@@ -3,11 +3,34 @@ name: Build and Deploy
 on:
   push:
     tags:
-      - 'v*'
+      - '*'
 
 jobs:
-  build:
+  create_release:
     runs-on: ubuntu-latest
+
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.ref }}
+          release_name: Release ${{ github.event.ref }}
+          draft: false
+          prerelease: false
+
+  build:
+    needs: create_release
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        target: [x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc, x86_64-apple-darwin, aarch64-apple-darwin]
 
     steps:
       - name: Set up Deno
@@ -18,30 +41,18 @@ jobs:
         with:
           repository: mactkg-playground/deno-release-test
 
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::$(git rev-parse --short HEAD)
+      - name: Build binary
+        run: deno compile --unstable --target=${{ matrix.target }} --output=bin/hello-world-${{ matrix.target }} main.ts
 
-      - name: Build binaries
-        run: |
-          deno compile --unstable --target=x86_64-unknown-linux-gnu --output=bin/hello-world-${{ steps.get_version.outputs.VERSION }}-linux main.ts
-          deno compile --unstable --target=x86_64-pc-windows-msvc --output=bin/hello-world-${{ steps.get_version.outputs.VERSION }}-windows.exe main.ts
-          deno compile --unstable --target=x86_64-apple-darwin --output=bin/hello-world-${{ steps.get_version.outputs.VERSION }}-macos main.ts
-          deno compile --unstable --target=aarch64-apple-darwin --output=bin/hello-world-${{ steps.get_version.outputs.VERSION }}-arm64 main.ts
+      - name: Compress binary
+        run: tar -czvf bin/hello-world-${{ matrix.target }}.tar.gz bin/hello-world-${{ matrix.target }}
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Upload binary
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: true
-          prerelease: false
-
-      - name: Upload binaries
-        uses: actions/upload-artifact@v2
-        with:
-          name: binaries
-          path: bin
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: bin/hello-world-${{ matrix.target }}.tar.gz
+          asset_name: hello-world-${{ matrix.target }}.tar.gz
+          asset_content_type: application/gzip
