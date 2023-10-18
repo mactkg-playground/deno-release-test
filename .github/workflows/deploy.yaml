@@ -45,7 +45,12 @@ jobs:
         run: deno compile --unstable --target=${{ matrix.target }} --output=bin/hello-world-${{ matrix.target }} main.ts
 
       - name: Compress binary
-        run: tar -czvf bin/hello-world-${{ matrix.target }}.tar.gz bin/hello-world-${{ matrix.target }}
+        run: |
+          if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
+            tar -czvf bin/hello-world-${{ matrix.target }}.tar.gz bin/hello-world-${{ matrix.target }}.exe
+          else
+            tar -czvf bin/hello-world-${{ matrix.target }}.tar.gz bin/hello-world-${{ matrix.target }}
+          fi
 
       - name: Upload binary
         uses: actions/upload-release-asset@v1
