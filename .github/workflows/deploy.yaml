@@ -3,7 +3,7 @@ name: Build and Deploy
 on:
   push:
     tags:
-      - '*'
+      - "*"
 
 jobs:
   create_release:
@@ -30,7 +30,13 @@ jobs:
 
     strategy:
       matrix:
-        target: [x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc, x86_64-apple-darwin, aarch64-apple-darwin]
+        target:
+          [
+            x86_64-unknown-linux-gnu,
+            x86_64-pc-windows-msvc,
+            x86_64-apple-darwin,
+            aarch64-apple-darwin,
+          ]
 
     steps:
       - name: Set up Deno
@@ -47,9 +53,9 @@ jobs:
       - name: Compress binary
         run: |
           if [ "${{ matrix.target }}" = "x86_64-pc-windows-msvc" ]; then
-            tar -czvf bin/hello-world-${{ matrix.target }}.tar.gz bin/hello-world-${{ matrix.target }}.exe
+            tar -czvf bin/hello-world-${{ matrix.target }}.tar.gz -C bin hello-world-${{ matrix.target }}.exe
           else
-            tar -czvf bin/hello-world-${{ matrix.target }}.tar.gz bin/hello-world-${{ matrix.target }}
+            tar -czvf bin/hello-world-${{ matrix.target }}.tar.gz -C bin hello-world-${{ matrix.target }}
           fi
 
       - name: Upload binary
